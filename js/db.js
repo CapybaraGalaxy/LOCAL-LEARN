@@ -1,5 +1,5 @@
 const DB_NAME = 'LocalLearnDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const db = {
     _db: null,
@@ -10,17 +10,17 @@ const db = {
             
             request.onupgradeneeded = (e) => {
                 const _db = e.target.result;
-                // Almacena las unidades (JSON del pack y metadatos)
                 if (!_db.objectStoreNames.contains('units')) {
                     _db.createObjectStore('units', { keyPath: 'id' });
                 }
-                // Almacena blobs de imágenes locales referenciadas por unitId_mediaPath
                 if (!_db.objectStoreNames.contains('media')) {
                     _db.createObjectStore('media', { keyPath: 'id' });
                 }
-                // Almacena el progreso. key: unitId_cardId
                 if (!_db.objectStoreNames.contains('progress')) {
                     _db.createObjectStore('progress', { keyPath: 'id' });
+                }
+                if (!_db.objectStoreNames.contains('records')) {
+                    _db.createObjectStore('records', { keyPath: 'id' });
                 }
             };
 
@@ -32,15 +32,14 @@ const db = {
         });
     },
 
-    async _transaction(storeName, mode, callback) {
+    async _tx(storeName, mode, callback) {
         return new Promise((resolve, reject) => {
             const tx = this._db.transaction(storeName, mode);
             const store = tx.objectStore(storeName);
-            const request = callback(store);
-            
-            if (request) {
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
+            const req = callback(store);
+            if (req) {
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             } else {
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
@@ -48,43 +47,72 @@ const db = {
         });
     },
 
-    // Units
+    // Unidades
     async saveUnit(unitData) {
         unitData.modified = new Date().toISOString();
-        return this._transaction('units', 'readwrite', store => store.put(unitData));
+        return this._tx('units', 'readwrite', store => store.put(unitData));
     },
     async getUnit(id) {
-        return this._transaction('units', 'readonly', store => store.get(id));
+        return this._tx('units', 'readonly', store => store.get(id));
     },
     async getAllUnits() {
-        return this._transaction('units', 'readonly', store => store.getAll());
+        return this._tx('units', 'readonly', store => store.getAll());
     },
     async deleteUnit(id) {
-        await this._transaction('progress', 'readwrite', store => { /* TODO: Limpiar progreso asociado */ });
-        return this._transaction('units', 'readwrite', store => store.delete(id));
+        const unit = await this.getUnit(id);
+        if (unit && unit.cards) {
+            for (const card of unit.cards) {
+                if (card.image) {
+                    await this.deleteMedia(`${id}_${card.image}`);
+                }
+                await this._tx('progress', 'readwrite', store => store.delete(`${id}_${card.id}`));
+            }
+        }
+        await this._tx('records', 'readwrite', store => store.delete(id));
+        return this._tx('units', 'readwrite', store => store.delete(id));
     },
 
-    // Media
+    // Multimedia (Blobs)
     async saveMedia(id, blob) {
-        return this._transaction('media', 'readwrite', store => store.put({ id, blob }));
+        return this._tx('media', 'readwrite', store => store.put({ id, blob }));
     },
     async getMediaBlob(id) {
-        const result = await this._transaction('media', 'readonly', store => store.get(id));
-        return result ? result.blob : null;
+        const res = await this._tx('media', 'readonly', store => store.get(id));
+        return res ? res.blob : null;
+    },
+    async deleteMedia(id) {
+        return this._tx('media', 'readwrite', store => store.delete(id));
     },
 
-    // Progress
+    // Progreso
     async saveCardProgress(unitId, cardId, stats) {
         const id = `${unitId}_${cardId}`;
         const current = await this.getCardProgress(unitId, cardId) || { level: 0, reviews: 0 };
         const updated = { id, unitId, cardId, ...current, ...stats, lastReview: Date.now() };
-        return this._transaction('progress', 'readwrite', store => store.put(updated));
+        return this._tx('progress', 'readwrite', store => store.put(updated));
     },
     async getCardProgress(unitId, cardId) {
-        return this._transaction('progress', 'readonly', store => store.get(`${unitId}_${cardId}`));
+        return this._tx('progress', 'readonly', store => store.get(`${unitId}_${cardId}`));
     },
     async getUnitProgress(unitId) {
-        const all = await this._transaction('progress', 'readonly', store => store.getAll());
+        const all = await this._tx('progress', 'readonly', store => store.getAll());
         return all.filter(p => p.unitId === unitId);
+    },
+
+    // Récords (Test y Match)
+    async saveRecord(unitId, type, data) {
+        const current = await this._tx('records', 'readonly', store => store.get(unitId)) || { id: unitId };
+        current[type] = data;
+        return this._tx('records', 'readwrite', store => store.put(current));
+    },
+    async getRecord(unitId) {
+        return this._tx('records', 'readonly', store => store.get(unitId));
+    },
+
+    async clearAllData() {
+        const stores = ['units', 'media', 'progress', 'records'];
+        for (const s of stores) {
+            await this._tx(s, 'readwrite', store => store.clear());
+        }
     }
 };

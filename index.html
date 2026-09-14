@@ -4,18 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Local Learn</title>
-    <meta name="description" content="Plataforma de estudio local-first.">
+    <meta name="description" content="Plataforma de estudio local-first sin conexión.">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <link rel="stylesheet" href="css/main.css">
     
-    <!-- Dependencias seguras y cacheadas offline -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <!-- App Shell -->
     <nav class="bottom-nav" id="main-nav">
         <a href="#/home" class="nav-item active" data-route="home">
             <i data-lucide="home"></i><span>Inicio</span>
@@ -24,7 +22,7 @@
             <i data-lucide="library"></i><span>Biblioteca</span>
         </a>
         <a href="#/editor/new" class="nav-item nav-fab">
-            <div class="fab"><i data-lucide="plus"></i></div>
+            <div class="fab" aria-label="Nueva unidad"><i data-lucide="plus"></i></div>
         </a>
         <a href="#/import" class="nav-item" data-route="import">
             <i data-lucide="download"></i><span>Importar</span>
@@ -34,16 +32,14 @@
         </a>
     </nav>
 
-    <!-- Main Content Outlet -->
     <main id="app-root"></main>
 
-    <!-- Modals & Toasts -->
     <div id="modal-root" class="hidden"></div>
     <div id="toast-root"></div>
 
-    <!-- Scripts -->
     <script src="js/db.js"></script>
     <script src="js/format.js"></script>
+    <script src="js/editor.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/views.js"></script>
     <script src="js/app.js"></script>
