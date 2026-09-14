@@ -1,0 +1,16 @@
+{
+  "name": "Local Learn",
+  "short_name": "LocalLearn",
+  "description": "Plataforma de estudio local-first.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Play_Icon_Black.svg", 
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
